@@ -49,6 +49,8 @@ class AppStore extends ChangeNotifier {
   static final _emailRule = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
   static String? checkPassword(String pw) => _pwRule.hasMatch(pw) ? null : '비밀번호는 영문+숫자 6~16자로 입력해주세요';
+  /// 010은 11자리, 예전 번호(011·016~019)는 10~11자리. 하이픈·공백은 무시한다.
+  static bool isPhone(String s) => RegExp(r'^(010\d{8}|01[16-9]\d{7,8})$').hasMatch(s.replaceAll(RegExp(r'[-\s]'), ''));
   static String? checkEmail(String email) =>
       _emailRule.hasMatch(email.trim()) ? null : '올바른 이메일 주소 형식으로 입력해 주세요';
 
@@ -279,6 +281,7 @@ class AppStore extends ChangeNotifier {
     final total = e.parkingTotal;
     if (total == null) return '총 주차면수를 먼저 입력해 주세요';
     if (current < 0) return '현재 주차대수는 0 이상이어야 합니다';
+    if (current > total) return '현재 대수는 총 면수보다 클 수 없습니다.';
     final s = snapshot(eventId);
     final before = s.parkingLevel;
     s.parkingCurrent = current;
@@ -403,7 +406,7 @@ class AppStore extends ChangeNotifier {
     if (draft.imageUrl.isEmpty) return '대표 이미지를 올려 주세요';
     if (!draft.endAt.isAfter(draft.startAt)) return '종료 일시는 시작 일시 이후여야 합니다';
     if (draft.capacity < 1) return '수용 인원은 1 이상이어야 합니다';
-    if (draft.parkingTotal != null && draft.parkingTotal! < 0) return '총 주차면수는 0 이상이어야 합니다';
+    if (draft.parkingTotal != null && draft.parkingTotal! < 1) return '총 면수는 1 이상으로 입력해 주세요.';
     if (category(draft.categoryId) == null) return '행사 종류를 골라 주세요';
     final dup = liveEvents.any((e) =>
         e.id != draft.id && e.name.trim() == draft.name.trim() && e.startAt.isAtSameMomentAs(draft.startAt));

@@ -1,4 +1,5 @@
 import 'models.dart';
+import 'real_events.dart';
 import 'store.dart';
 
 /// 시연용 샘플 데이터. 날짜는 오늘을 기준으로 잡아 진행중·예정·종료가 늘 섞여 보이게 한다.
@@ -14,6 +15,7 @@ void seedStore(AppStore s) {
     Category(3, '전통문화'),
     Category(4, '음악·공연'),
     Category(5, '불꽃·야경'),
+    Category(6, '전시·박람회'),
   ]);
 
   final user = Member(
@@ -34,7 +36,9 @@ void seedStore(AppStore s) {
   final org2 = Member(
       id: 3, role: Role.organizer, loginId: 'org2', passwordHash: AppStore.hash('pass1234'),
       name: '바다마을 협동조합', email: 'org2@example.com', termsAgreedAt: now);
-  s.organizers.addAll([org1, org2]);
+  // 실제 축제 정보를 올린 계정. 로그인 아이디가 없어 아무도 이 계정으로 수정할 수 없다
+  final public = Member(id: 4, role: Role.organizer, name: '공공 축제 정보', email: 'public@raduna.local', termsAgreedAt: now);
+  s.organizers.addAll([org1, org2, public]);
 
   // 관심순·혼잡도가 보이도록 손님 회원을 둔다
   for (var i = 0; i < 40; i++) {
@@ -92,6 +96,31 @@ void seedStore(AppStore s) {
   final jeonju = ev('전주 한옥 전통 놀이마당', 2, 3, '전라', '전북 전주시 완산구 기린대로 99', 35.8151, 127.1530, at(-40, 10),
       at(-37, 18), EventStatus.ended, desc: '한옥마을 골목에서 펼쳐지는 전통 놀이와 공연.', createdDaysAgo: 60);
   s.events.addAll([dodream, lantern, fireworks, namsan, suwon, market, busan, gangneung, jeonju]);
+
+  // 실제 축제 (lib/real_events.dart, CSV에서 생성). 진행 상태는 오늘과 기간으로 정한다
+  for (final r in realEvents) {
+    // 축제 시각은 한국 현지 시각이다. +09:00을 떼고 읽어야 기기 시간대가 달라도(에뮬레이터 GMT) 날짜가 밀리지 않는다
+    final start = DateTime.parse(r.start.substring(0, 19)), end = DateTime.parse(r.end.substring(0, 19));
+    s.events.add(Event(
+      id: ++id,
+      organizerId: public.id,
+      name: r.name,
+      imageUrl: r.image,
+      description: r.desc,
+      visitInfo: [if (r.visit.isNotEmpty) r.visit, '출처: ${r.source}'].join('\n'),
+      program: r.program.isEmpty ? null : r.program,
+      status: now.isBefore(start) ? EventStatus.ready : (now.isAfter(end) ? EventStatus.ended : EventStatus.ongoing),
+      startAt: start,
+      endAt: end,
+      region: r.region,
+      categoryId: r.cat,
+      address: r.address,
+      latitude: r.lat,
+      longitude: r.lng,
+      capacity: 1000, // shortcut: 원본에 수용 인원이 없어 혼잡도 계산용 기본값을 둔다. 개최자 확인 값이 오면 바꾼다
+      createdAt: now.subtract(const Duration(days: 2)),
+    ));
+  }
 
   // 관심 행사
   for (final e in [dodream, fireworks, gangneung]) {
@@ -155,6 +184,9 @@ void seedStore(AppStore s) {
   guide(lantern, '등불 산책로', '소원 등 만들기, 등불 퍼레이드', [('소원 등 만들기', 17, 19), ('등불 퍼레이드', 20, 21)]);
   guide(suwon, '화성행궁 체험장', '활쏘기, 한복 체험, 전통 놀이', [('활쏘기', 10, 12), ('한복 체험', 13, 17)]);
   guide(fireworks, '여의도 관람존', '불꽃 쇼, 음악 공연', [('사전 공연', 18, 19), ('불꽃 쇼', 19, 21)]);
+  // 가이드 목록 [종료] 탭이 비지 않게 종료된 행사에도 가이드를 둔다. 일정은 오늘 날짜로 잡혀 '진행중'으로 보이므로 넣지 않는다
+  guide(busan, '해변 먹거리 장터', '해산물 시식, 수산물 경매 체험', []);
+  guide(jeonju, '한옥마을 놀이마당', '전통 놀이, 국악 공연', []);
 
   // 알림 (두드림 혼잡 알림은 위 recalcCrowd가 이미 보냈다)
   s.notifications.add(AppNotification(s.nextId(), user.id, fireworks.id, NotiType.eventUpdate, '관심 행사 "한강 불꽃 야경제" 정보가 변경되었어요',

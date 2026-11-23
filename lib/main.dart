@@ -54,7 +54,7 @@ class FestOnApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Fest-On',
+      title: '라두나',
       debugShowCheckedModeBanner: false,
       theme: appTheme(),
       locale: const Locale('ko'),

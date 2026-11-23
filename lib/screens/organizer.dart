@@ -183,9 +183,31 @@ class _EventFormScreenState extends State<EventFormScreen> {
     return total == 0 ? Level.busy : AppStore.levelFromRatio(now / total);
   }
 
+  final _focus = <TextEditingController, FocusNode>{};
+  FocusNode _focusOf(TextEditingController c) => _focus.putIfAbsent(c, FocusNode.new);
+
+  @override
+  void dispose() {
+    for (final f in _focus.values) {
+      f.dispose();
+    }
+    super.dispose();
+  }
+
   void _save() {
+    // 화면 위에서부터 첫 빈 필수 칸으로 커서를 옮겨 어디가 비었는지 바로 보이게 한다
+    final empty = [_name, _desc, _capacity, _address].where((c) => c.text.trim().isEmpty).firstOrNull;
+    if (empty != null) {
+      _focusOf(empty).requestFocus();
+      return toast(context, '필수 항목(축제 제목 등)을 입력해주세요');
+    }
     final lat = double.tryParse(_lat.text), lng = double.tryParse(_lng.text);
     final cap = int.tryParse(_capacity.text);
+    final total = int.tryParse(_parkingTotal.text), current = int.tryParse(_parkingNow.text);
+    if (total != null && current != null && current > total) {
+      _focusOf(_parkingNow).requestFocus();
+      return toast(context, '현재 대수는 총 면수보다 클 수 없습니다.');
+    }
     if (lat == null || lng == null || lat.abs() > 90 || lng.abs() > 180) return toast(context, '위도·경도를 숫자로 바르게 입력해 주세요');
     if (cap == null) return toast(context, '수용 인원을 숫자로 입력해 주세요');
     if (_cat == null) return toast(context, '행사 종류를 골라 주세요');
@@ -224,6 +246,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
         padding: const EdgeInsets.only(bottom: 10),
         child: TextField(
           controller: c,
+          focusNode: _focusOf(c),
           minLines: lines,
           maxLines: lines == 1 ? 1 : lines + 3,
           onChanged: onChanged,

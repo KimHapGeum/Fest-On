@@ -108,7 +108,9 @@ class NetImage extends StatelessWidget {
     final bytes = store.localImages[url];
     if (bytes != null) return Image.memory(bytes, fit: fit);
     if (url.startsWith('http')) {
-      return Image.network(url, fit: fit, errorBuilder: (_, _, _) => _placeholder());
+      // 축제 이미지 서버(visitkorea·mcst 등)는 CORS 헤더가 없어, 웹에서는 막히면 <img> 태그로 대신 그린다
+      return Image.network(url,
+          fit: fit, webHtmlElementStrategy: WebHtmlElementStrategy.fallback, errorBuilder: (_, _, _) => _placeholder());
     }
     return _placeholder();
   }
@@ -256,10 +258,10 @@ class LogoTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Semantics(
         button: true,
-        label: 'Fest-On 홈으로',
+        label: '라두나 홈으로',
         child: GestureDetector(
           onTap: () => HomeJump.of(context)?.call(),
-          child: Image.asset('assets/icons/logo.png', height: 34),
+          child: Image.asset('assets/icons/logo.png', height: 40),
         ),
       );
 }

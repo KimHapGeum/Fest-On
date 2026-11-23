@@ -388,11 +388,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     _sortButton('관심순'),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: PopupMenuButton<String?>(
+                      // 값이 null인 메뉴는 Flutter가 "선택 안 함"으로 보고 onSelected를 부르지 않아, 전체 지역은 ''로 받는다
+                      child: PopupMenuButton<String>(
                         tooltip: '지역',
-                        onSelected: (v) => setState(() => _region = v),
+                        onSelected: (v) => setState(() => _region = v.isEmpty ? null : v),
                         itemBuilder: (_) => [
-                          const PopupMenuItem(value: null, child: Text('전체 지역')),
+                          const PopupMenuItem(value: '', child: Text('전체 지역')),
                           for (final r in AppStore.regions) PopupMenuItem(value: r, child: Text(r)),
                         ],
                         child: Chip(

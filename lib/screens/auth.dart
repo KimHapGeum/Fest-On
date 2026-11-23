@@ -75,7 +75,8 @@ class _LoginScreenState extends State<LoginScreen> {
   var _hidePw = true;
 
   void _login() {
-    if (_id.text.trim().isEmpty || _pw.text.isEmpty) return toast(context, '아이디와 비밀번호를 입력해 주세요');
+    if (_id.text.trim().isEmpty) return toast(context, '아이디(이메일)를 입력해 주세요.');
+    if (_pw.text.isEmpty) return toast(context, '비밀번호를 입력해 주세요.');
     final err = store.login(_role, _id.text, _pw.text);
     if (err != null) return toast(context, err);
     saveAutoLogin(_auto);
@@ -333,6 +334,7 @@ class _FindIdScreenState extends State<FindIdScreen> {
   void _send() {
     if (_name.text.trim().isEmpty) return toast(context, '이름을 입력해 주세요');
     if (_phone.text.trim().isEmpty) return toast(context, '휴대폰 번호를 입력해 주세요');
+    if (!AppStore.isPhone(_phone.text)) return toast(context, '휴대폰 번호를 정확히 입력해 주세요.');
     // shortcut: 문자 발송 서비스가 없어 번호를 화면에 띄운다. 본인인증/SMS 서비스를 붙이면 이 부분을 바꾼다.
     _sentCode = (Random().nextInt(900000) + 100000).toString();
     toast(context, '[시연] 인증번호 $_sentCode 가 발송되었습니다');
