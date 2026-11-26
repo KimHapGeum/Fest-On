@@ -91,8 +91,8 @@ class Member {
 }
 
 class SocialAccount {
-  SocialAccount(this.id, this.memberId, this.role, this.provider, this.providerUserId)
-      : createdAt = DateTime.now();
+  SocialAccount(this.id, this.memberId, this.role, this.provider, this.providerUserId, {DateTime? createdAt})
+      : createdAt = createdAt ?? DateTime.now();
   final int id;
   final int memberId;
   final Role role;
@@ -172,7 +172,8 @@ class EventGuide {
     required this.mapImageUrl,
     required this.program,
     required this.qrToken,
-  })  : createdAt = DateTime.now(),
+    DateTime? createdAt,
+  })  : createdAt = createdAt ?? DateTime.now(),
         updatedAt = DateTime.now();
 
   int id;
@@ -186,8 +187,9 @@ class EventGuide {
 }
 
 class GuideSchedule {
-  GuideSchedule({this.id = 0, this.guideId = 0, required this.title, required this.startAt, required this.endAt})
-      : createdAt = DateTime.now(),
+  GuideSchedule(
+      {this.id = 0, this.guideId = 0, required this.title, required this.startAt, required this.endAt, DateTime? createdAt})
+      : createdAt = createdAt ?? DateTime.now(),
         updatedAt = DateTime.now();
 
   int id;
@@ -200,7 +202,7 @@ class GuideSchedule {
 }
 
 class FavoriteEvent {
-  FavoriteEvent(this.participantId, this.eventId) : createdAt = DateTime.now();
+  FavoriteEvent(this.participantId, this.eventId, {DateTime? createdAt}) : createdAt = createdAt ?? DateTime.now();
   final int participantId;
   final int eventId;
   final DateTime createdAt;

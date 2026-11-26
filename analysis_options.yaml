@@ -15,6 +15,7 @@ analyzer:
     - android/**
     - ios/**
     - web/**
+    - server/** # 따로 된 다트 패키지라 server 폴더에서 분석한다
 
 linter:
   # The lint rules applied to this project can be customized in the

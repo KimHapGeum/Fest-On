@@ -1,0 +1,17 @@
+name: fest_on_server
+description: "라두나(Fest-On) 로컬 서버. 앱의 lib/store.dart 규칙을 그대로 불러 쓴다."
+publish_to: 'none'
+
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  crypto: ^3.0.6
+  shelf: ^1.4.2
+  # 앱 코드(lib/store.dart)가 package:flutter/foundation.dart의 ChangeNotifier만 쓴다.
+  # 서버는 Flutter 없이 돌므로 그 자리만 채운 대역 패키지를 쓴다.
+  flutter:
+    path: flutter_stub
+
+dev_dependencies:
+  test: ^1.29.0

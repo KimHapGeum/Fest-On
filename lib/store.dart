@@ -34,8 +34,9 @@ class AppStore extends ChangeNotifier {
   /// shortcut: 서버가 없어서 사진을 메모리에 둔다. 서버를 붙이면 올린 뒤 받은 주소를 image_url에 넣는다.
   final localImages = <String, Uint8List>{};
 
-  int _seq = 100;
-  int nextId() => ++_seq;
+  /// 마지막으로 쓴 번호. 저장해 둔 표를 불러올 때 이어 쓴다.
+  int seq = 100;
+  int nextId() => ++seq;
 
   Member? me;
 
@@ -525,5 +526,8 @@ class AppStore extends ChangeNotifier {
   }
 }
 
-/// 앱 전체가 함께 쓰는 저장소.
-final store = AppStore();
+/// 로컬 서버 주소. `flutter run --dart-define=API_URL=http://127.0.0.1:8080`처럼 주면 서버를 쓰고, 비우면 예전처럼 앱 메모리에서 돈다.
+const apiUrl = String.fromEnvironment('API_URL');
+
+/// 앱 전체가 함께 쓰는 저장소. 서버를 쓸 때는 서버에서 받은 값으로 채운다.
+final store = AppStore(seed: apiUrl.isEmpty);

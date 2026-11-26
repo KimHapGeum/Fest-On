@@ -1,6 +1,7 @@
 import 'package:image_picker/image_picker.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../api.dart';
 import '../main.dart';
 import '../models.dart';
 import '../store.dart';
@@ -24,7 +25,12 @@ Future<String?> pickImage(BuildContext context) async {
     if (context.mounted) toast(context, '5MB 이하의 이미지만 올릴 수 있습니다');
     return null;
   }
-  return store.addLocalImage(bytes);
+  try {
+    return await uploadImage(bytes, f.name);
+  } on ApiError catch (e) {
+    if (context.mounted) toast(context, e.message);
+    return null;
+  }
 }
 
 class Avatar extends StatelessWidget {
@@ -106,7 +112,7 @@ class MyScreen extends StatelessWidget {
                       padding: EdgeInsets.zero,
                       onPressed: () async {
                         final url = await pickImage(context);
-                        if (url != null) store.updateMe((m) => m.profileImageUrl = url);
+                        if (url != null) actErr('updateSettings', {'profileImageUrl': url});
                       },
                       icon: const Icon(Icons.camera_alt),
                     ),
@@ -263,7 +269,7 @@ class _EventHistoryScreenState extends State<EventHistoryScreen> {
 class AccountScreen extends StatelessWidget {
   const AccountScreen({super.key});
 
-  Future<void> _edit(BuildContext context, String title, String initial, String? Function(String) save,
+  Future<void> _edit(BuildContext context, String title, String initial, Future<String?> Function(String) save,
       {TextInputType? type, int? maxLength}) async {
     final c = TextEditingController(text: initial);
     final v = await showDialog<String>(
@@ -278,7 +284,8 @@ class AccountScreen extends StatelessWidget {
       ),
     );
     if (v == null || !context.mounted) return;
-    toast(context, save(v) ?? '변경되었습니다');
+    final err = await save(v);
+    if (context.mounted) toast(context, err ?? '변경되었습니다');
   }
 
   Widget _card(IconData icon, String title, String sub, VoidCallback onTap) => Padding(
@@ -325,14 +332,14 @@ class AccountScreen extends StatelessWidget {
             children: [
               const SectionTitle('계정 정보'),
               _card(Icons.person_outline, '이름', m.name,
-                  () => _edit(context, '이름 변경', m.name, (v) => store.updateProfile(name: v), maxLength: 50)),
+                  () => _edit(context, '이름 변경', m.name, (v) => actErr('updateProfile', {'name': v}), maxLength: 50)),
               _card(Icons.mail_outline, '이메일', m.email,
-                  () => _edit(context, '이메일 변경', m.email, (v) => store.updateProfile(email: v),
+                  () => _edit(context, '이메일 변경', m.email, (v) => actErr('updateProfile', {'email': v}),
                       type: TextInputType.emailAddress, maxLength: 100)),
               // 마이 화면의 자기소개를 고칠 곳이 필요해 피그마에 없는 카드를 하나 더 둔다
               if (m.role == Role.participant)
                 _card(Icons.edit_note, '자기소개', m.bio ?? '없음',
-                    () => _edit(context, '자기소개 변경', m.bio ?? '', (v) => store.updateProfile(bio: v), maxLength: 200)),
+                    () => _edit(context, '자기소개 변경', m.bio ?? '', (v) => actErr('updateProfile', {'bio': v}), maxLength: 200)),
               _card(
                   Icons.lock_outline,
                   '비밀번호 변경',
@@ -439,8 +446,9 @@ class _PasswordChangeScreenState extends State<PasswordChangeScreen> {
           TextField(controller: _confirm, obscureText: true, decoration: const InputDecoration(hintText: '새 비밀번호를 다시 입력해 주세요.')),
           const SizedBox(height: 32),
           FilledButton(
-            onPressed: () {
-              final err = store.changePassword(_cur.text, _next.text, _confirm.text);
+            onPressed: () async {
+              final err = await actErr('changePassword', {'current': _cur.text, 'next': _next.text, 'confirm': _confirm.text});
+              if (!context.mounted) return;
               if (err != null) return toast(context, err);
               toast(context, '비밀번호가 변경되었습니다');
               Navigator.pop(context);
@@ -471,16 +479,16 @@ class NotifySettingsScreen extends StatelessWidget {
           final m = store.me;
           if (m == null) return const SizedBox();
           final on = m.notifyEnabled;
-          Widget sw(String t, String s, bool v, void Function(Member, bool) set, {bool enabled = true}) => SwitchListTile(
+          Widget sw(String t, String s, bool v, String field, {bool enabled = true}) => SwitchListTile(
                 title: Text(t, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
                 subtitle: Text(s),
                 value: v,
-                onChanged: enabled ? (x) => store.updateMe((m) => set(m, x)) : null,
+                onChanged: enabled ? (x) => actErr('updateSettings', {field: x}) : null,
               );
           return ListView(
             padding: const EdgeInsets.symmetric(vertical: 8),
             children: [
-              sw('알림', '축제 푸시 알림을 받습니다.', on, (m, x) => m.notifyEnabled = x),
+              sw('알림', '축제 푸시 알림을 받습니다.', on, 'notifyEnabled'),
               ListTile(
                 enabled: on,
                 title: const Text('알림음', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
@@ -488,10 +496,10 @@ class NotifySettingsScreen extends StatelessWidget {
                   value: sounds.contains(m.notifySound) ? m.notifySound : '기본',
                   underline: const SizedBox(),
                   items: [for (final s in sounds) DropdownMenuItem(value: s, child: Text(s))],
-                  onChanged: on ? (v) => store.updateMe((m) => m.notifySound = v) : null,
+                  onChanged: on ? (v) => actErr('updateSettings', {'notifySound': v}) : null,
                 ),
               ),
-              sw('미리보기', '축제 푸시 알림이 왔을 때 메시지의 일부를 보여줍니다.', m.notifyPreview, (m, x) => m.notifyPreview = x,
+              sw('미리보기', '축제 푸시 알림이 왔을 때 메시지의 일부를 보여줍니다.', m.notifyPreview, 'notifyPreview',
                   enabled: on),
               Container(
                 margin: const EdgeInsets.symmetric(vertical: 8),
@@ -500,10 +508,10 @@ class NotifySettingsScreen extends StatelessWidget {
                 child: const Text('실시간 상태 알림', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
               ),
               sw('실시간 주차 상태 알림', '주차장의 여유 공간 상태를 실시간으로 알림 받습니다.', m.notifyParking,
-                  (m, x) => m.notifyParking = x,
+                  'notifyParking',
                   enabled: on),
               sw('현장 혼잡도 알림', '관심 축제 부스/스테이지 등 혼잡도가 바뀌면 실시간으로 알림 받습니다.', m.notifyCrowd,
-                  (m, x) => m.notifyCrowd = x,
+                  'notifyCrowd',
                   enabled: on),
             ],
           );

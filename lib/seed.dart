@@ -121,6 +121,7 @@ void seedStore(AppStore s) {
       createdAt: now.subtract(const Duration(days: 2)),
     ));
   }
+  s.seq = id; // 새로 만드는 번호(nextId)가 행사 번호와 겹치지 않게 그 뒤부터 쓴다
 
   // 관심 행사
   for (final e in [dodream, fireworks, gangneung]) {

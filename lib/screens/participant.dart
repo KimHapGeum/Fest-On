@@ -3,6 +3,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../api.dart';
 import '../models.dart';
 import '../store.dart';
 import '../widgets.dart';
@@ -705,7 +706,7 @@ class FavoriteButton extends StatelessWidget {
     final on = store.isFavorite(eventId);
     return IconButton(
       tooltip: on ? '관심 행사 해제' : '관심 행사 등록',
-      onPressed: () => store.toggleFavorite(eventId),
+      onPressed: () => actErr('toggleFavorite', {'eventId': eventId}),
       icon: Icon(
         on ? Icons.star_rounded : Icons.star_outline_rounded,
         color: on ? const Color(0xFFFFB400) : muted,
@@ -1331,9 +1332,12 @@ class _QrScreenState extends State<QrScreen> {
   var _busy = false;
   DateTime _lastFail = DateTime(2000);
 
-  void _handle(String? raw, VisitSource source) {
+  Future<void> _handle(String? raw, VisitSource source) async {
     if (raw == null || raw.isEmpty || _busy) return;
-    final (g, err) = store.scanQr(raw, source: source);
+    _busy = true; // 서버 답을 기다리는 동안 같은 QR이 여러 번 읽혀도 한 번만 보낸다
+    final (guideId, err) = await actPair('scanQr', {'token': raw, 'source': source.name});
+    _busy = false;
+    if (!mounted) return;
     if (err != null) {
       // 같은 잘못된 코드를 계속 비추면 알림이 쌓이지 않게 2초에 한 번만 띄운다
       if (DateTime.now().difference(_lastFail) > const Duration(seconds: 2)) {
@@ -1344,7 +1348,7 @@ class _QrScreenState extends State<QrScreen> {
     }
     _busy = true;
     toast(context, '방문이 기록되었습니다');
-    push(context, GuideDetailScreen(guideId: g!.id)).then((_) => _busy = false);
+    push(context, GuideDetailScreen(guideId: guideId!)).then((_) => _busy = false);
   }
 
   Future<void> _manual() async {
@@ -1530,7 +1534,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       subtitle: Text('${n.type.label} · ${ago(n.createdAt)}'),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () {
-                        store.markRead(n);
+                        actErr('markRead', {'id': n.id});
                         push(context, EventDetailScreen(eventId: n.eventId));
                       },
                     ),

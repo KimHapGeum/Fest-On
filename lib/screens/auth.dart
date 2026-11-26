@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:material_ui/material_ui.dart';
 
 import '../main.dart';
+import '../api.dart';
 import '../models.dart';
 import '../store.dart';
 import '../widgets.dart';
@@ -74,10 +75,11 @@ class _LoginScreenState extends State<LoginScreen> {
   var _auto = false;
   var _hidePw = true;
 
-  void _login() {
+  Future<void> _login() async {
     if (_id.text.trim().isEmpty) return toast(context, '아이디(이메일)를 입력해 주세요.');
     if (_pw.text.isEmpty) return toast(context, '비밀번호를 입력해 주세요.');
-    final err = store.login(_role, _id.text, _pw.text);
+    final err = await actErr('login', {'role': _role.name, 'id': _id.text, 'password': _pw.text});
+    if (!mounted) return;
     if (err != null) return toast(context, err);
     saveAutoLogin(_auto);
   }
@@ -149,8 +151,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: const Text('회원가입'),
                   ),
                   const SizedBox(height: 24),
-                  SocialButtons(onTap: (p) {
-                    store.socialLogin(_role, p);
+                  SocialButtons(onTap: (p) async {
+                    final err = await actErr('socialLogin', {'role': _role.name, 'provider': p.name});
+                    if (!context.mounted) return;
+                    if (err != null) return toast(context, err);
                     saveAutoLogin(_auto);
                   }),
                   const SizedBox(height: 20),
@@ -215,15 +219,15 @@ class _SignupScreenState extends State<SignupScreen> {
 
   Future<void> _submit() async {
     if (!_terms || !_privacy) return _alert('필수 약관에 모두 동의해주세요');
-    final err = store.signup(
-      role: _role,
-      loginId: _id.text,
-      name: _name.text,
-      email: _email.text,
-      password: _pw.text,
-      passwordConfirm: _pw2.text,
-      termsAgreed: true,
-    );
+    final err = await actErr('signup', {
+      'role': _role.name,
+      'loginId': _id.text,
+      'name': _name.text,
+      'email': _email.text,
+      'password': _pw.text,
+      'passwordConfirm': _pw2.text,
+      'termsAgreed': true,
+    });
     if (!mounted) return;
     if (err != null) return toast(context, err);
     toast(context, '회원가입이 완료되었습니다. 로그인해 주세요');
@@ -301,7 +305,7 @@ class _SignupScreenState extends State<SignupScreen> {
             verb: '가입',
             onTap: (p) {
               Navigator.of(context).popUntil((r) => r.isFirst); // 로그인 화면 위에 쌓인 가입 화면을 닫는다
-              store.socialLogin(_role, p);
+              actErr('socialLogin', {'role': _role.name, 'provider': p.name});
             },
           ),
         ],
@@ -346,11 +350,18 @@ class _FindIdScreenState extends State<FindIdScreen> {
     });
   }
 
-  void _find() {
+  Future<void> _find() async {
     if (_sentCode == null) return toast(context, '인증번호를 먼저 받아 주세요');
     if (_left <= 0) return toast(context, '인증 시간이 만료되었습니다. 인증번호를 다시 받아주세요');
     if (_code.text.trim() != _sentCode) return toast(context, '인증번호가 일치하지 않습니다. 다시 확인해 주세요');
-    final ids = store.findLoginIds(_name.text);
+    final List<String> ids;
+    try {
+      ids = (await act('findLoginIds', {'name': _name.text}) as List).cast<String>();
+    } on ApiError catch (e) {
+      if (mounted) toast(context, e.message);
+      return;
+    }
+    if (!mounted) return;
     _timer?.cancel();
     showDialog<void>(
       context: context,

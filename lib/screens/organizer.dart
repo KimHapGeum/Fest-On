@@ -2,6 +2,8 @@ import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../api.dart';
+import '../codec.dart';
 import '../models.dart';
 import '../store.dart';
 import '../widgets.dart';
@@ -57,7 +59,8 @@ Future<void> editParking(BuildContext context, Event e) async {
   if (v == null || !context.mounted) return;
   final n = int.tryParse(v);
   if (n == null) return toast(context, '숫자를 입력해 주세요');
-  toast(context, store.updateParking(e.id, n) ?? '주차 현황이 갱신되었습니다');
+  final err = await actErr('updateParking', {'eventId': e.id, 'current': n});
+  if (context.mounted) toast(context, err ?? '주차 현황이 갱신되었습니다');
 }
 
 // ===================== 등록된 행사 =====================
@@ -116,7 +119,8 @@ class _OrgEventsScreenState extends State<OrgEventsScreen> {
                             if (await confirm(context, '행사 삭제', '"${e.name}"을(를) 삭제할까요?\n참여자 화면에서 더 이상 보이지 않습니다.',
                                     ok: '삭제') &&
                                 context.mounted) {
-                              toast(context, store.deleteEvent(e.id) ?? '삭제되었습니다');
+                              final err = await actErr('deleteEvent', {'id': e.id});
+                              if (context.mounted) toast(context, err ?? '삭제되었습니다');
                             }
                         }
                       },
@@ -194,7 +198,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
     super.dispose();
   }
 
-  void _save() {
+  Future<void> _save() async {
     // 화면 위에서부터 첫 빈 필수 칸으로 커서를 옮겨 어디가 비었는지 바로 보이게 한다
     final empty = [_name, _desc, _capacity, _address].where((c) => c.text.trim().isEmpty).firstOrNull;
     if (empty != null) {
@@ -232,10 +236,12 @@ class _EventFormScreenState extends State<EventFormScreen> {
       parkingTotal: int.tryParse(_parkingTotal.text),
       createdAt: _old?.createdAt,
     );
-    final err = store.saveEvent(draft);
+    final (id, err) = await actPair('saveEvent', {'event': eventToJson(draft)});
+    if (!mounted) return;
     if (err != null) return toast(context, err);
     final now = int.tryParse(_parkingNow.text);
-    if (now != null && draft.parkingTotal != null) store.updateParking(draft.id, now);
+    if (now != null && draft.parkingTotal != null) await actErr('updateParking', {'eventId': id, 'current': now});
+    if (!mounted) return;
     toast(context, _old == null ? '행사가 성공적으로 등록되었습니다' : '행사 정보가 수정되었습니다');
     Navigator.pop(context);
   }
@@ -523,22 +529,23 @@ class _GuideFormScreenState extends State<GuideFormScreen> {
     setState(() => _items.add(GuideSchedule(title: '', startAt: base, endAt: base.add(const Duration(hours: 1)))));
   }
 
-  void _save() {
+  Future<void> _save() async {
     if (_eventId == null) return toast(context, '행사를 골라 주세요');
     for (final s in _items) {
       s.title = _titleOf(s).text;
     }
-    final (g, err) = store.saveGuide(
-      guideId: _old?.id ?? 0,
-      eventId: _eventId!,
-      name: _name.text,
-      mapImageUrl: _map,
-      program: _program.text,
-      items: _items,
-    );
+    final (guideId, err) = await actPair('saveGuide', {
+      'guideId': _old?.id ?? 0,
+      'eventId': _eventId!,
+      'name': _name.text,
+      'mapImageUrl': _map,
+      'program': _program.text,
+      'items': [for (final s in _items) scheduleToJson(s)],
+    });
+    if (!mounted) return;
     if (err != null) return toast(context, err);
     toast(context, _old == null ? '가이드가 등록되었습니다. QR 코드를 현장에 배포하세요' : '가이드가 수정되었습니다');
-    Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => QrViewScreen(guideId: g!.id)));
+    Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => QrViewScreen(guideId: guideId!)));
   }
 
   static const _label = TextStyle(fontSize: 18, fontWeight: FontWeight.w800);
@@ -557,7 +564,9 @@ class _GuideFormScreenState extends State<GuideFormScreen> {
               tooltip: '가이드 삭제',
               onPressed: () async {
                 if (await confirm(context, '가이드 삭제', '가이드와 일정, QR 코드가 삭제됩니다.', ok: '삭제') && context.mounted) {
-                  toast(context, store.deleteGuide(_old.id) ?? '삭제되었습니다');
+                  final err = await actErr('deleteGuide', {'id': _old.id});
+                  if (!context.mounted) return;
+                  toast(context, err ?? '삭제되었습니다');
                   Navigator.pop(context);
                 }
               },

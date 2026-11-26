@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
+import 'api.dart';
 import 'models.dart';
 import 'store.dart';
 
@@ -105,6 +106,7 @@ class NetImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final url = imageSrc(this.url); // 서버에 올린 사진은 '/images/…'로 저장된다
     final bytes = store.localImages[url];
     if (bytes != null) return Image.memory(bytes, fit: fit);
     if (url.startsWith('http')) {

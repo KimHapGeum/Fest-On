@@ -1,0 +1,6 @@
+name: flutter
+description: "서버용 대역: 앱 저장소가 쓰는 ChangeNotifier 자리만 채운다. 진짜 Flutter가 아니다."
+publish_to: 'none'
+
+environment:
+  sdk: ^3.10.0
